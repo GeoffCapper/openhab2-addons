@@ -27,6 +27,7 @@ import org.openhab.binding.mysensors.internal.protocol.message.MySensorsMessageA
 import org.openhab.binding.mysensors.internal.protocol.message.MySensorsMessageDirection;
 import org.openhab.binding.mysensors.internal.protocol.message.MySensorsMessageSubType;
 import org.openhab.binding.mysensors.internal.protocol.message.MySensorsMessageType;
+import org.openhab.binding.mysensors.internal.protocol.mqtt.MySensorsMqttConnection;
 import org.openhab.binding.mysensors.internal.protocol.serial.MySensorsSerialConnection;
 import org.openhab.binding.mysensors.internal.sensors.MySensorsChild;
 import org.openhab.binding.mysensors.internal.sensors.MySensorsNode;
@@ -93,6 +94,9 @@ public class MySensorsGateway implements MySensorsGatewayEventListener {
                 case IP:
                     myCon = new MySensorsIpConnection(myConf, myEventRegister);
                     return true;
+                case MQTT:
+                    myCon = new MySensorsMqttConnection(myConf, myEventRegister);
+                    return true;
             }
         } else {
             logger.error("Invalid configuration supplied: {}", myConf);
@@ -144,7 +148,7 @@ public class MySensorsGateway implements MySensorsGatewayEventListener {
             return nodeMap.get(nodeId);
         }
     }
-    
+
     public void removeNode(int nodeId) {
         synchronized (nodeMap) {
             nodeMap.remove(nodeId);
@@ -241,13 +245,13 @@ public class MySensorsGateway implements MySensorsGatewayEventListener {
      * @throws MergeException if mergeIfExist is true and nodes has common child/children
      */
     public void addNode(MySensorsNode node, boolean mergeIfExist) throws MergeException {
-      synchronized (nodeMap) {
+        synchronized (nodeMap) {
             MySensorsNode exist = null;
             if (mergeIfExist && ((exist = getNode(node.getNodeId())) != null)) {
                 logger.debug("Merging child map: {} with: {}", exist.getChildMap(), node.getChildMap());
 
                 exist.merge(node);
-      
+
                 logger.trace("Merging result is: {}", exist.getChildMap());
             } else {
                 logger.debug("Adding device {}", node.toString());
@@ -500,7 +504,7 @@ public class MySensorsGateway implements MySensorsGatewayEventListener {
             logger.debug("Node {} not present, send new node discovered event", msg.getNodeId());
 
             node = new MySensorsNode(msg.getNodeId());
-            
+
             addNode(node);
             myEventRegister.notifyNewNodeDiscovered(node, null);
             return true;
@@ -551,7 +555,7 @@ public class MySensorsGateway implements MySensorsGatewayEventListener {
                 logger.debug("Child {} found in node {}", msg.getChildId(), msg.getNodeId());
 
                 MySensorsVariable variable = child.getVariable(msg.getSubType());
-                
+
                 if (variable != null) {
 
                     if (msg.isSetMessage()) {
@@ -696,7 +700,6 @@ public class MySensorsGateway implements MySensorsGatewayEventListener {
     private void answerIDRequest() {
         logger.info("ID Request received");
 
-        
         try {
             int newId = reserveId();
             logger.info("New Node in the MySensors network has requested an ID. ID is: {}", newId);

@@ -539,7 +539,7 @@ public class MySensorsGateway implements MySensorsGatewayEventListener {
             myEventRegister.notifyNewNodeDiscovered(node, child);
             return true;
         } else {
-            logger.warn("Presented child is alredy present in gateway");
+            logger.info("Presented child is alredy present in gateway");
         }
 
         return false;

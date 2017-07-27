@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
  * @author Sean McGuire
  *
  */
-
 public class MySensorsMqttConnection extends MySensorsAbstractConnection {
 
     private static final Logger logger = LoggerFactory.getLogger(MySensorsMqttConnection.class);
@@ -50,31 +49,27 @@ public class MySensorsMqttConnection extends MySensorsAbstractConnection {
 
     public MySensorsMqttConnection(MySensorsGatewayConfig myConf, MySensorsEventRegister myEventRegister) {
         super(myConf, myEventRegister);
-
     }
 
     /**
      * Creates Streams to communicate with the Abstract connection, MQTT producers and consumers
      * to talk to the MQTT broker (via the Openhab MQTT transport bundle) and connects them
      * all together
+     * 
+     * @return true if the connection was established successfully
      */
     @Override
     public boolean establishConnection() {
 
-        boolean ret = false;
+        boolean connectionEstablished = false;
 
         if (myMqtt.getService() != null) {
-
-            in = null;
-            out = null;
             out = new PipedOutputStream();
             in = new PipedInputStream();
             try {
                 in.connect(out);
                 mysConReader = new MySensorsReader(in);
-                mysConWriter = new MySensorsMqttWriter(System.out);
-                // null output rather than stdout?
-                // it should never be written to however, as we have overridden the sendMessage method
+                mysConWriter = new MySensorsMqttWriter(null);
 
                 mqttService = myMqtt.getService();
 
@@ -93,14 +88,14 @@ public class MySensorsMqttConnection extends MySensorsAbstractConnection {
                 mqttService.registerMessageConsumer(brokerName, mqttConsumer);
                 mqttService.registerMessageProducer(brokerName, mqttPublisher);
 
-                ret = startReaderWriterThread(mysConReader, mysConWriter);
+                connectionEstablished = startReaderWriterThread(mysConReader, mysConWriter);
 
             } catch (IOException e) {
-                logger.debug(e.toString());
+                logger.error("Exception ocurred while trying to establish a broker connection", e);
             }
         }
 
-        return ret;
+        return connectionEstablished;
     }
 
     /**
@@ -114,6 +109,13 @@ public class MySensorsMqttConnection extends MySensorsAbstractConnection {
         mqttService.unregisterMessageProducer(brokerName, mqttPublisher);
     }
 
+    /**
+     * Handles writes to the gateway. Publishes messages to MQTT topic.
+     * 
+     * @author Sean McGuire
+     * @author Tim Oberföll
+     *
+     */
     protected class MySensorsMqttWriter extends MySensorsWriter {
 
         public MySensorsMqttWriter(OutputStream outStream) {
@@ -123,14 +125,14 @@ public class MySensorsMqttConnection extends MySensorsAbstractConnection {
         @Override
         protected void sendMessage(String msg) {
 
-            logger.debug("Sending MQTT Message: Topic: {}, Message: {}", topicPublish, msg);
+            logger.debug("Sending MQTT Message: Topic: {}, Message: {}", topicPublish, msg.trim());
             try {
                 mqttPublisher.publish(topicPublish, msg);
             } catch (NullPointerException ne) {
-                logger.debug("Null exception from MQTT transport service, broker unavailable");
+                logger.error("Null exception from MQTT transport service, broker unavailable", ne);
                 MySensorsMqttConnection.this.requestDisconnection(true);
             } catch (Exception e) {
-                logger.debug("Error sending MQTT message: {}", e.toString());
+                logger.debug("Error sending MQTT message!", e);
             }
 
         }
@@ -140,6 +142,8 @@ public class MySensorsMqttConnection extends MySensorsAbstractConnection {
     /**
      * Receives messages from MQTT transport, translates them and passes them on to
      * the MySensors abstract connection
+     * 
+     * @author Sean McGuire
      */
     public class MySensorsMqttConsumer implements MqttMessageConsumer {
 
@@ -153,11 +157,11 @@ public class MySensorsMqttConnection extends MySensorsAbstractConnection {
             if (topic.indexOf(topicSubscribe) == 0) {
 
                 String messageTopicPart = topic.replace(topicSubscribe, "");
-                logger.debug("Message topic part: {}", messageTopicPart);
+                logger.trace("Message topic part: {}", messageTopicPart);
                 MySensorsMessage incomingMessage = new MySensorsMessage();
                 try {
                     incomingMessage = MySensorsMessage.parseMQTT(messageTopicPart, payloadString);
-                    logger.debug("Converted MQTT message to MySensors Serial format. Sending on to bridge: {}",
+                    logger.trace("Converted MQTT message to MySensors Serial format. Sending on to bridge: {}",
                             MySensorsMessage.generateAPIString(incomingMessage).trim());
                     try {
 
@@ -197,6 +201,8 @@ public class MySensorsMqttConnection extends MySensorsAbstractConnection {
     /**
      * Receives messages from the MySensors abstract connection,
      * translates them and passes them on to the MQTT transport.
+     * 
+     * @author Sean McGuire
      *
      */
     public class MySensorsMqttPublisher implements MqttMessageProducer {

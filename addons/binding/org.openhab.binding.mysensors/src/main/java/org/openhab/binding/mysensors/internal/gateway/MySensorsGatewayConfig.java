@@ -73,8 +73,13 @@ public class MySensorsGatewayConfig {
      * Baud rate used to connect the serial port
      */
     private Integer baudRate;
+    
+    /**
+     * try hard reset of serial port using DTR
+     */
+    private boolean hardReset;
 
-    // Ip
+	// Ip
     /**
      * ip address the gateway is attached to
      */
@@ -100,6 +105,14 @@ public class MySensorsGatewayConfig {
     public void setSerialPort(String serialPort) {
         this.serialPort = serialPort;
     }
+    
+    public boolean isHardReset() {
+		return hardReset;
+	}
+
+	public void setHardReset(boolean hardReset) {
+		this.hardReset = hardReset;
+	}
 
     public String getIpAddress() {
         return ipAddress;

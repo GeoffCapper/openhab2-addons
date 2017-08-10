@@ -17,6 +17,7 @@ package org.openhab.binding.mysensors.config;
 public class MySensorsBridgeConfiguration {
     public String serialPort; // serial port the gateway is attached to
     public String ipAddress; // ip address the gateway is attached to
+    public Boolean hardReset; // hard reset attached gateway with DTR
     public Integer tcpPort; // tcp port the gateway is running at
     public Integer sendDelay; // delay at which messages are send from the internal queue to the MySensors network
     public Integer baudRate; // baud rate used to connect the serial port
@@ -31,7 +32,8 @@ public class MySensorsBridgeConfiguration {
     @Override
     public String toString() {
         return "MySensorsBridgeConfiguration [serialPort=" + serialPort 
-                + ", ipAddress=" + ipAddress 
+        		+ ", hardReset=" + hardReset
+        		+ ", ipAddress=" + ipAddress 
                 + ", tcpPort=" + tcpPort 
                 + ", sendDelay=" + sendDelay 
                 + ", baudRate=" + baudRate 
